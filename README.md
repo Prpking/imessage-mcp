@@ -4,10 +4,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MCP](https://img.shields.io/badge/MCP-Compatible-8A2BE2?style=flat-square)](https://modelcontextprotocol.io)
-[![CI](https://github.com/anipotts/imessage-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/anipotts/imessage-mcp/actions/workflows/ci.yml)
+[![CI](https://github.com/Prpking/imessage-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Prpking/imessage-mcp/actions/workflows/ci.yml)
 [![Node](https://img.shields.io/badge/Node.js-18%2B-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
 
-**26 tools for locally exploring your iMessage history with AI.**
+**28 tools for exploring message history and sending authorized messages, including Apple Messages for Business.**
+
+This fork preserves the deployed v1.5 implementation on the `mac-studio` branch. The upstream npm package does not contain this fork's send tools. Install this branch from source for sending support. See [Sending messages](docs/sending.md).
 
 <p align="center">
   <picture>
@@ -17,11 +19,26 @@
   </picture>
 </p>
 
-An [MCP server](https://modelcontextprotocol.io) that gives AI assistants **read-only** access to your local iMessage database. Nothing is written, modified, or uploaded. Your messages stay on your Mac; the AI only sees what you ask about.
+An [MCP server](https://modelcontextprotocol.io) that gives AI assistants read-only access to message history and a separate tool for sending authorized text through the macOS Messages app. Existing Apple Messages for Business conversations are supported.
 
-> **Read-only access to 2 local files** (`chat.db` + `AddressBook`). Zero network requests. Nothing is written, uploaded, or shared. All 26 tools are annotated `readOnlyHint: true` — your MCP client can auto-approve every call without prompts.
+> History tools read `chat.db` and AddressBook locally. The `send` tool is an external write action and must be used only for a recipient and message the user authorized. Messages sends the text through Apple's service. Send attempts use private temporary files and a persistent duplicate-prevention ledger.
 
-## Install
+## Install this fork
+
+```bash
+git clone --branch mac-studio https://github.com/Prpking/imessage-mcp.git
+cd imessage-mcp
+npm ci
+npm run build
+node bin/imessage-mcp.js
+```
+
+Use Node.js 24 on macOS and grant the process access to Messages history and automation of Messages. For HTTP hosting, bind to loopback and retain the existing authenticated reverse proxy or set `IMESSAGE_API_TOKEN`. The database remains read-only. See [Sending messages](docs/sending.md) for tool inputs and result semantics.
+
+## Upstream installation reference
+
+The installation and client examples below describe the original upstream package. They do not install this fork's send implementation; use the source installation above for it.
+
 
 ```bash
 npm install -g imessage-mcp
@@ -76,14 +93,16 @@ claude plugin add anipotts/imessage-mcp
 
 ## Privacy & Security
 
-imessage-mcp reads your local iMessage database in **read-only mode**. No data leaves your machine. Nothing is written, modified, uploaded, or shared.
+History queries open the local Messages database in **read-only mode**. Requested results are returned to the connected MCP client. Authorized sends transmit text through Messages and store a local attempt record to prevent duplicate sends.
 
 | Path | Access | Purpose |
 | --- | --- | --- |
 | `~/Library/Messages/chat.db` | Read-only | Your iMessage database |
 | `~/Library/Application Support/AddressBook/` | Read-only | Contact name resolution |
+| `~/.local/state/imessage-mcp/sends/` | Read/write | Request IDs, recipient/content hashes, and send results; no message body |
+| Private temporary directory | Read/write, removed after execution | UTF-8 recipient and message files used by AppleScript |
 
-No other files are accessed. No external APIs are called.
+The server invokes local Messages automation for sends. It does not write to `chat.db`. Messages handles delivery through Apple's messaging service.
 
 ```
 chat.db --> [imessage-mcp] --> stdio/http --> [Your MCP Client] --> AI Provider
@@ -126,7 +145,7 @@ Once connected, ask your AI assistant anything about your messages in plain lang
 
 ## Tools
 
-26 tools across 10 categories. All read-only. All annotated with `readOnlyHint: true`.
+28 tools: 27 read-only tools and one external-action `send` tool. `send` is annotated `readOnlyHint: false` and `openWorldHint: true`.
 
 | Tool | Description |
 | --- | --- |
@@ -138,7 +157,7 @@ Once connected, ask your AI assistant anything about your messages in plain lang
 | `on_this_day` | Messages from this date in past years |
 
 <details>
-<summary><strong>All 26 tools</strong></summary>
+<summary><strong>All 28 tools</strong></summary>
 
 | Tool | Description |
 | --- | --- |
@@ -167,6 +186,8 @@ Once connected, ask your AI assistant anything about your messages in plain lang
 | `get_edited_messages` | Edited and unsent messages with timing |
 | `get_message_effects` | Slam, loud, confetti, fireworks analytics |
 | `check_new_messages` | Track new messages since your last check (baseline + delta) |
+| `send` | Send authorized text to a phone/email or an existing Apple Messages for Business conversation |
+| `list_business_chats` | Discover existing business threads and their exact sending/history identifiers |
 | `help` | Full tool guide with usage examples |
 
 </details>
@@ -711,11 +732,11 @@ npm uninstall -g imessage-mcp
 
 ## How It Works
 
-imessage-mcp reads `~/Library/Messages/chat.db` using [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) in read-only mode with `query_only = ON`. Zero network requests. Contact names are resolved from your macOS AddressBook automatically.
+imessage-mcp reads `~/Library/Messages/chat.db` using [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) in read-only mode with `query_only = ON`. The server queries local data and uses Messages automation for authorized sends. Contact names are resolved from your macOS AddressBook automatically.
 
 On macOS 14 (Sonoma) and later, Apple changed how message text is stored. Some messages have `NULL` in the `text` column but contain the actual text in the `attributedBody` binary blob. imessage-mcp extracts text from this blob automatically so no messages are left behind.
 
-All 26 tools are annotated with `readOnlyHint: true` so MCP clients can auto-approve them without user prompts.
+History and business-discovery tools are annotated `readOnlyHint: true`. The `send` tool is marked as an external write action. Its description requires user authorization; approval enforcement belongs to the MCP client, not a separate server-side confirmation mechanism.
 
 ## License
 

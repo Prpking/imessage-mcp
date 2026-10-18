@@ -1,6 +1,6 @@
 // Help system — help tool for imessage-mcp
 //
-// Provides a comprehensive guide to all 26 tools.
+// Provides a comprehensive guide to all 28 tools.
 
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
@@ -15,16 +15,18 @@ const VERSION = pkg.version;
 function buildHelpText(): string {
   return `# imessage-mcp v${VERSION}
 
-Read-only access to your iMessage database on macOS. 26 tools for searching,
-analyzing, and exploring your entire message history.
+Access to your iMessage history and authorized sending on macOS. 28 tools for
+searching, analyzing, and sending iMessages. History database access remains read-only.
 
 ---
 
-## Tools (26)
+## Tools (28)
 
 ### Messages & Conversations
 | Tool                | What it does                                                         |
 |---------------------|----------------------------------------------------------------------|
+| send                | Send authorized text to one exact phone/email or an existing Messages for Business thread. For businesses call list_business_chats first and use send_to as to. Requires text and request_id UUID. dry_run verifies account access or exact chat resolution. Reuse request_id on retries. Submitted does not confirm delivery. |
+| list_business_chats | Find existing business threads by name. Returns send_to for sending and history_chat_id for reading. Apple Support is supported when its thread is present on this Mac. |
 | search_messages     | Full-text search across all iMessages with filters (query, contact, date, direction, group, attachments) |
 | get_conversation    | Full conversation thread with a contact or chat, cursor-based pagination |
 
@@ -201,7 +203,7 @@ Useful for demos, shared environments, or when you only need analytics.
 export function registerHelp(server: McpServer) {
   server.tool(
     "help",
-    "Show the imessage-mcp guide: all 26 tools and usage examples. Call this when you're unsure what's available.",
+    "Show the imessage-mcp guide: all 28 tools and usage examples. Call this when you're unsure what's available.",
     {},
     { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     async () => ({

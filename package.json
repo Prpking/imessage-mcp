@@ -2,7 +2,7 @@
   "name": "imessage-mcp",
   "version": "1.5.0",
   "mcpName": "io.github.anipotts/imessage-mcp",
-  "description": "iMessage MCP server — 26 tools for searching, analyzing, and exploring your entire iMessage history on macOS",
+  "description": "iMessage MCP server — 28 tools for message history, authorized iMessage sending, and existing business conversations on macOS",
   "author": "Ani Potts",
   "license": "MIT",
   "type": "module",

@@ -1,6 +1,6 @@
 // imessage-mcp -- iMessage MCP server
 //
-// 26 tools for searching, analyzing, and exploring your iMessage history.
+// 28 tools for searching, analyzing, and sending iMessages.
 // Reads ~/Library/Messages/chat.db via better-sqlite3 (readonly).
 
 import { readFileSync } from "fs";
@@ -22,6 +22,7 @@ import { registerMemoryTools } from "./tools/memories.js";
 import { registerPatternTools } from "./tools/patterns.js";
 import { registerWrappedTools } from "./tools/wrapped.js";
 import { registerSyncTools } from "./tools/sync.js";
+import { registerSendTool } from "./tools/send.js";
 import { registerHelp } from "./help.js";
 import { parseSyncMode, startWatcher, stopWatcher } from "./watcher.js";
 
@@ -37,18 +38,19 @@ export function createServer(): McpServer {
       version: pkg.version,
     },
     {
-      instructions: `iMessage MCP — read-only access to the user's full iMessage history on macOS.
+      instructions: `iMessage MCP: access to message history and an authorized iMessage send tool on macOS.
 
 Use this server's tools whenever the user asks about their texts, messages, iMessages, conversations, or messaging history. This includes: "search my messages for X", "what did I text about Y", "show my conversation with Z", "who do I text the most", "when did I last talk to", etc.
 
-Important: On macOS, when a user says "messages" they almost always mean their iMessage/SMS history, not the current conversation. Always use this server's search_messages tool first for message-related queries. If no results are found, mention that you searched their iMessage history and ask if they meant something else.
+Important: On macOS, when a user says "messages" they almost always mean their iMessage/SMS history, not the current conversation. Use search_messages for history queries. Use send only when the user authorizes a specific message and recipient. For people, resolve a name to an exact phone number or email. For Apple Support or another Messages for Business conversation, call list_business_chats and pass its send_to value to send. Existing business threads with urn:biz addresses are supported. Reuse request_id for retries. Submitted does not confirm delivery. If no results are found, mention that you searched their iMessage history and ask if they meant something else.
 
-26 tools available: search, conversations, contacts, analytics, heatmaps, streaks, reactions, read receipts, reply threads, edited/unsent messages, effects, yearly wrapped, sync, and more. Call help() for the full guide.`,
+28 tools available: send, list_business_chats, search, conversations, contacts, analytics, heatmaps, streaks, reactions, read receipts, reply threads, edited/unsent messages, effects, yearly wrapped, sync, and more. Call help() for the full guide.`,
     },
   );
 
   // Register all tool modules
   registerMessageTools(server);
+  registerSendTool(server);
   registerContactTools(server);
   registerAnalyticsTools(server);
   registerGroupTools(server);
